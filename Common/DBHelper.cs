@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Couchbase;
 using Couchbase.Core;
 using Couchbase.Extensions.DependencyInjection;
+using Couchbase.Query;
 
 namespace CouchbaseWebAPI.Common
 {
@@ -28,45 +29,29 @@ namespace CouchbaseWebAPI.Common
                                                     KeyValuePair<string, object>[] parameters)
         {
             string errMessage = string.Empty;
+            IList<EntityType> queryResult = null;
+            var options = new QueryOptions();
             try
             {
-                var queryResult = await _cluster.QueryAsync<EntityType>($"EXECUTE {QueryName}", 
-                                                options => options.Parameter(parameters).RetryStrategy(new MyRetryStrategy()));
-                
-                return await queryResult.Rows.ToListAsync<EntityType>();
+                if(parameters !=null && parameters.Any())
+                {
+                    options.Parameter(parameters);
+                    options.RetryStrategy(new MyRetryStrategy());
+                }
+                queryResult = await TryExecutePreparedQueryAsync<EntityType>(QueryName, options);
             }
             catch (Exception ex)
             {
                 if(ex.Message == "QueryPreparedStatementFailure")
                 {
-                    var deletePreparedQuery = await _cluster.QueryAsync<dynamic>($"DELETE FROM system:prepareds where name = {QueryName}");
-
-                    if(deletePreparedQuery.MetaData.Status == Couchbase.Query.QueryStatus.Success)
+                    var blnDeletePrepare = await DeletePreparedQuery(QueryName);
+                    if(blnDeletePrepare)
                     {
-                        var prepareQuery = await _cluster.QueryAsync<dynamic>($"PREPARE {QueryName} FROM {Query}");
-                        if(prepareQuery.MetaData.Status == Couchbase.Query.QueryStatus.Success)
+                        var blnPrepareQuery = await PreparePreparedQuery(QueryName, Query); 
+                        if(blnPrepareQuery)
                         {
-                            var queryResult = await _cluster.QueryAsync<EntityType>($"EXECUTE {QueryName}", 
-                                                    options => options.Parameter(parameters));
-                    
-                            return await queryResult.Rows.ToListAsync<EntityType>();
+                            queryResult = await TryExecutePreparedQueryAsync<EntityType>(QueryName, options);
                         }
-                        else
-                        {
-                            foreach(var err in prepareQuery.Errors)
-                            {
-                                errMessage = $"{errMessage} Error Code: {err.Code}, Error Message: {err.Message}";
-                            }
-                            throw new Exception(errMessage);
-                        }
-                    }
-                    else
-                    {
-                        foreach(var err in deletePreparedQuery.Errors)
-                        {
-                            errMessage = $"{errMessage} Error Code: {err.Code}, Error Message: {err.Message}";
-                        }
-                        throw new Exception(errMessage);
                     }
                 }
                 else
@@ -74,6 +59,64 @@ namespace CouchbaseWebAPI.Common
                     throw ex;
                 }
             }
+            return queryResult;
+        }
+
+        private async Task<bool> DeletePreparedQuery(string QueryName)
+        {
+            string errMessage = string.Empty;
+
+            var deletePreparedQuery = await _cluster.QueryAsync<dynamic>($"DELETE FROM system:prepareds where name = {QueryName}");
+
+            if(deletePreparedQuery.MetaData.Status == Couchbase.Query.QueryStatus.Success)
+            {
+                return true;
+            }
+            else
+            {
+                HandleQueryException(deletePreparedQuery.Errors);
+                return false;
+            }
+        }
+    
+        private async Task<IList<EntityType>> TryExecutePreparedQueryAsync<EntityType>(string QueryName,
+                                                    QueryOptions options)
+        {
+            string errMessage = string.Empty;
+
+            var queryResult = await _cluster.QueryAsync<EntityType>($"EXECUTE {QueryName}", 
+                                                options);
+            
+            if(queryResult.MetaData.Status != QueryStatus.Success)
+            {
+                HandleQueryException(queryResult.Errors);
+            }
+            return await queryResult.Rows.ToListAsync();
+        }
+
+        private async Task<bool> PreparePreparedQuery(string QueryName, string Query)
+        {
+            var prepareQuery = await _cluster.QueryAsync<dynamic>($"PREPARE {QueryName} FROM {Query}");
+            
+            if(prepareQuery.MetaData.Status == Couchbase.Query.QueryStatus.Success)
+            {
+                return true;
+            }
+            else
+            {
+                HandleQueryException(prepareQuery.Errors);
+                return false;
+            }
+        }
+
+        private void HandleQueryException(List<Error> queryErrors)
+        {
+            string errMessage = string.Empty;
+            foreach(var err in queryErrors)
+            {
+                errMessage = $"{errMessage} Error Code: {err.Code}, Error Message: {err.Message}";
+            }
+            throw new Exception(errMessage);
         }
     }
 }
