@@ -28,7 +28,6 @@ namespace CouchbaseWebAPI.Common
                                                     string Query,
                                                     KeyValuePair<string, object>[] parameters)
         {
-            string errMessage = string.Empty;
             IList<EntityType> queryResult = null;
             var options = new QueryOptions();
             try
@@ -36,20 +35,23 @@ namespace CouchbaseWebAPI.Common
                 if(parameters !=null && parameters.Any())
                 {
                     options.Parameter(parameters);
-                    options.RetryStrategy(new MyRetryStrategy());
                 }
+                options.RetryStrategy(new MyRetryStrategy());
                 queryResult = await TryExecutePreparedQueryAsync<EntityType>(QueryName, options);
             }
             catch (Exception ex)
             {
                 if(ex.Message == "QueryPreparedStatementFailure")
                 {
+                    // if prepared does not exists then delete any existing prepared on any other query nodes 
                     var blnDeletePrepare = await DeletePreparedQuery(QueryName);
                     if(blnDeletePrepare)
                     {
+                        // Prepare the query 
                         var blnPrepareQuery = await PreparePreparedQuery(QueryName, Query); 
                         if(blnPrepareQuery)
                         {
+                            // Execute the prepared query 
                             queryResult = await TryExecutePreparedQueryAsync<EntityType>(QueryName, options);
                         }
                     }
@@ -64,8 +66,6 @@ namespace CouchbaseWebAPI.Common
 
         private async Task<bool> DeletePreparedQuery(string QueryName)
         {
-            string errMessage = string.Empty;
-
             var deletePreparedQuery = await _cluster.QueryAsync<dynamic>($"DELETE FROM system:prepareds where name = {QueryName}");
 
             if(deletePreparedQuery.MetaData.Status == Couchbase.Query.QueryStatus.Success)
@@ -82,8 +82,6 @@ namespace CouchbaseWebAPI.Common
         private async Task<IList<EntityType>> TryExecutePreparedQueryAsync<EntityType>(string QueryName,
                                                     QueryOptions options)
         {
-            string errMessage = string.Empty;
-
             var queryResult = await _cluster.QueryAsync<EntityType>($"EXECUTE {QueryName}", 
                                                 options);
             

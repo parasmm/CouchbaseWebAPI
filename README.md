@@ -13,14 +13,14 @@ Visual Studio Code
 2. Open Git Bash
 3. Change the current working directory to the location where you want the cloned directory.
 4. Type git clone, and then paste the URL you copied earlier.
-```
+```bat
 $ git clone https://github.com/parasmm/CouchbaseWebAPI.git
 ```
 
 **Configure couchbase connection in appsettings.json:**
 
 Update appsettings.json to include appropriate connection info for Couchbase – 
-```
+```json
 "Couchbase" : { 
     "ConnectionString": "couchbase://127.0.0.1", 
     "UseSsl": false, 
@@ -39,14 +39,14 @@ At this point, application is ready to take requests.
 
 **Get:**
 Run below curl command to run API endpoint for Get
-```
+```bat
 curl -X GET "https://localhost:5001/Airport/airport_3494" 
 -H  "accept: text/plain"
 ```
 
 **Create:**
 Run below curl command to run API endpoint for create
-```
+```bat
 curl -X PUT "https://localhost:5001/Airport" 
 -H  "accept: */*" 
 -H  "Content-Type: application/json" 
@@ -55,7 +55,7 @@ curl -X PUT "https://localhost:5001/Airport"
 
 **Update:**
 Run below curl command to run API endpoint for update
-```
+```bat
 curl -X POST "https://localhost:5001/Airport" 
 -H  "accept: */*" 
 -H  "Content-Type: application/json" 
@@ -64,7 +64,14 @@ curl -X POST "https://localhost:5001/Airport"
 
 **Delete:**
 Run below curl command to run API endpoint for delete
-```
+```bat
 curl -X DELETE "https://localhost:5001/Airport/airport_1" 
 -H  "accept: */*"
+```
+
+**Get by City Prepared**
+Run below curl command to run API endpoint for get by city prepared
+```bat
+curl -X GET "https://localhost:5001/Airport/byCityPrepared/Newark" 
+-H  "accept: text/plain"
 ```

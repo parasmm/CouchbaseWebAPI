@@ -2,6 +2,7 @@ using Couchbase.Core.Retry;
 
 namespace CouchbaseWebAPI.Common
 {
+    // Overriding BestEffortRetryStrategy to stop retrying in case QueryPreparedStatementFailure
     public class MyRetryStrategy : IRetryStrategy
     {
         private readonly IBackoffCalculator _backoffCalculator;
@@ -22,6 +23,7 @@ namespace CouchbaseWebAPI.Common
             {
                 return RetryAction.Duration(null);
             }
+            // added below code to modify BestEffortRetryStrategy of couchbase to stop retrying in case of QueryPreparedStatementFailure
             else if(reason == RetryReason.QueryPreparedStatementFailure)
             {
                 throw new System.Exception(reason.ToString());
@@ -34,5 +36,5 @@ namespace CouchbaseWebAPI.Common
 
             return RetryAction.Duration(null);
         }
-    }
-}
+    } 
+} 
