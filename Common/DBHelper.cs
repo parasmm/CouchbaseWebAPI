@@ -48,7 +48,7 @@ namespace CouchbaseWebAPI.Common
                     if(blnDeletePrepare)
                     {
                         // Prepare the query 
-                        var blnPrepareQuery = await PreparePreparedQuery(QueryName, Query); 
+                        var blnPrepareQuery = await BuildPreparedQuery(QueryName, Query); 
                         if(blnPrepareQuery)
                         {
                             // Execute the prepared query 
@@ -92,7 +92,7 @@ namespace CouchbaseWebAPI.Common
             return await queryResult.Rows.ToListAsync();
         }
 
-        private async Task<bool> PreparePreparedQuery(string QueryName, string Query)
+        private async Task<bool> BuildPreparedQuery(string QueryName, string Query)
         {
             var prepareQuery = await _cluster.QueryAsync<dynamic>($"PREPARE {QueryName} FROM {Query}");
             
